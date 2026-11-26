@@ -2,7 +2,7 @@
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 85% 0,#e7dcff 0,transparent 40%),#f5f6fb;color:#30344d;font:14px system-ui,sans-serif}main{max-width:1150px;margin:auto;padding:24px}header{padding:32px 0 25px}h1{font-weight:500;font-size:36px;letter-spacing:4px;margin:8px 0}h2{font-size:19px;margin:0 0 14px}small,p{color:#777b91;line-height:1.6} .eyebrow{letter-spacing:3px;color:#796ca5;font-size:11px}.panel{background:#ffffffde;border:1px solid #e5e3f0;border-radius:20px;padding:20px;margin:14px 0;box-shadow:0 8px 35px #53457709}button,input,select,textarea{font:inherit;color:inherit;border:1px solid #dedcec;border-radius:10px;background:white;padding:10px 13px}button{cursor:pointer}button:hover{border-color:#9281ca}button.on,.primary{background:#64538f;color:white;border-color:#64538f}nav,.line{display:flex;flex-wrap:wrap;gap:8px;align-items:center}nav{margin:8px 0 14px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px}.metric{padding:16px;background:#f5f3fa;border-radius:14px;color:#77718b}.metric b{display:block;font-size:28px;color:#51416f;font-weight:500}.item{padding:15px 0;border-bottom:1px solid #eeedf4;display:flex;gap:12px;align-items:start;justify-content:space-between}.item:last-child{border:0}.item>div{min-width:0;flex:1}.item p{margin:5px 0}.tag{font-size:11px;color:#74658d;background:#f0ecf8;padding:4px 8px;border-radius:8px;display:inline-block;margin-right:5px}.empty{text-align:center;padding:50px 12px;color:#8a859b}.empty b{display:block;font-size:19px;color:#62577d;margin:8px}textarea{width:100%;min-height:180px;resize:vertical;font-family:monospace}input[type=search]{flex:1;min-width:160px}details{margin-top:8px}summary{cursor:pointer;color:#74649c}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px system-ui;color:#65647a}.danger{color:#ad445e} .muted{color:#817d92}.right{margin-left:auto}#toast{position:fixed;bottom:15px;right:15px;background:#51416f;color:white;padding:12px 20px;border-radius:12px;display:none;max-width:90vw} @media(max-width:600px){main{padding:12px}header{padding:20px 0}h1{font-size:27px}.panel{padding:14px}.item{flex-wrap:wrap}.item>div{min-width:65%}button,input,select{padding:9px} }
 [hidden]{display:none!important}
 </style><main><header><div class="eyebrow">LOVE AND DEEPSPACE / COLLECTION ARCHIVE</div><h1>✧ 深空 · 星轨档案</h1><p>把每一次相遇，收藏成自己的星图。</p></header><section id="cloud-auth" class="panel" hidden></section><section class="panel"><nav id="views"></nav><div class="line" id="accounts" hidden><select id="account"></select><button id="add">＋ 新增账号</button><button id="rename">编辑账号</button></div></section><section id="content"></section><footer><p id="archive-footer">星轨档案 · 保存到本机的档案.json · 可在数据管理导出备份</p></footer></main><div id="toast"></div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="./cloud.js"></script>
+<script src="./cloud.js?v=b0a301c8a67b"></script>
 <script>window.archiveCloudConfig = {"url": "https://qegkgtkknxyzvqewxviv.supabase.co", "publishableKey": "sb_publishable_Cm4IPDN8P0mV7V8jZ8-kDQ_GjCGMZkU"};</script>
 <script>
 const $=id=>document.getElementById(id), clone=o=>JSON.parse(JSON.stringify(o)), uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2);
@@ -72,10 +72,24 @@ function showSignIn(message = '') {
     password.autocomplete = 'current-password';
     password.required = true;
     const submit = el('button', '登录', 'primary');
-    const errors = el('p', message);
-    errors.setAttribute('role', 'status');
-    form.append(email, password, submit);
-    auth.replaceChildren(el('h2', '登录星轨档案'), form, errors);
+    const mail = button('发送邮件登录链接', async () => {
+        if (!email.reportValidity()) return;
+        mail.disabled = true;
+        feedback.textContent = '正在发送登录链接…';
+        try {
+            await cloud.sendSignInLink(email.value.trim(), new URL('./', location.href).href);
+            feedback.textContent = '登录链接已发送。请从邮箱打开链接返回星轨档案。';
+        } catch (error) {
+            feedback.textContent = '邮件发送失败：' + error.message;
+        } finally {
+            mail.disabled = false;
+        }
+    });
+    mail.type = 'button';
+    const feedback = el('p', message);
+    feedback.setAttribute('role', 'status');
+    form.append(email, password, submit, mail);
+    auth.replaceChildren(el('h2', '登录星轨档案'), form, feedback);
     form.onsubmit = async event => {
         event.preventDefault();
         submit.disabled = true;
@@ -84,7 +98,9 @@ function showSignIn(message = '') {
             password.value = '';
             await loadCloudArchive();
         } catch (error) {
-            errors.textContent = '登录或读取失败：' + error.message;
+            feedback.textContent = error.message === 'Invalid login credentials'
+                ? '邮箱或密码不匹配。你也可以用邮件登录链接进入。'
+                : '登录或读取失败：' + error.message;
         } finally {
             submit.disabled = false;
         }

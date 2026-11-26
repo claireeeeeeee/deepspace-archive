@@ -18,6 +18,12 @@ function createCloudArchive({ url, publishableKey }) {
         async signIn(email, password) {
             await result(client.auth.signInWithPassword({ email, password }));
         },
+        async sendSignInLink(email, redirectTo) {
+            await result(client.auth.signInWithOtp({
+                email,
+                options: { shouldCreateUser: false, emailRedirectTo: redirectTo },
+            }));
+        },
         async signOut() {
             await result(client.auth.signOut({ scope: 'local' }));
         },
