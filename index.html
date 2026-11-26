@@ -2,7 +2,7 @@
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 85% 0,#e7dcff 0,transparent 40%),#f5f6fb;color:#30344d;font:14px system-ui,sans-serif}main{max-width:1150px;margin:auto;padding:24px}header{padding:32px 0 25px}h1{font-weight:500;font-size:36px;letter-spacing:4px;margin:8px 0}h2{font-size:19px;margin:0 0 14px}small,p{color:#777b91;line-height:1.6} .eyebrow{letter-spacing:3px;color:#796ca5;font-size:11px}.panel{background:#ffffffde;border:1px solid #e5e3f0;border-radius:20px;padding:20px;margin:14px 0;box-shadow:0 8px 35px #53457709}button,input,select,textarea{font:inherit;color:inherit;border:1px solid #dedcec;border-radius:10px;background:white;padding:10px 13px}button{cursor:pointer}button:hover{border-color:#9281ca}button.on,.primary{background:#64538f;color:white;border-color:#64538f}nav,.line{display:flex;flex-wrap:wrap;gap:8px;align-items:center}nav{margin:8px 0 14px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px}.metric{padding:16px;background:#f5f3fa;border-radius:14px;color:#77718b}.metric b{display:block;font-size:28px;color:#51416f;font-weight:500}.item{padding:15px 0;border-bottom:1px solid #eeedf4;display:flex;gap:12px;align-items:start;justify-content:space-between}.item:last-child{border:0}.item>div{min-width:0;flex:1}.item p{margin:5px 0}.tag{font-size:11px;color:#74658d;background:#f0ecf8;padding:4px 8px;border-radius:8px;display:inline-block;margin-right:5px}.empty{text-align:center;padding:50px 12px;color:#8a859b}.empty b{display:block;font-size:19px;color:#62577d;margin:8px}textarea{width:100%;min-height:180px;resize:vertical;font-family:monospace}input[type=search]{flex:1;min-width:160px}details{margin-top:8px}summary{cursor:pointer;color:#74649c}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px system-ui;color:#65647a}.danger{color:#ad445e} .muted{color:#817d92}.right{margin-left:auto}#toast{position:fixed;bottom:15px;right:15px;background:#51416f;color:white;padding:12px 20px;border-radius:12px;display:none;max-width:90vw} @media(max-width:600px){main{padding:12px}header{padding:20px 0}h1{font-size:27px}.panel{padding:14px}.item{flex-wrap:wrap}.item>div{min-width:65%}button,input,select{padding:9px} }
 [hidden]{display:none!important}
 </style><main><header><div class="eyebrow">LOVE AND DEEPSPACE / COLLECTION ARCHIVE</div><h1>✧ 深空 · 星轨档案</h1><p>把每一次相遇，收藏成自己的星图。</p></header><section id="cloud-auth" class="panel" hidden></section><section class="panel"><nav id="views"></nav><div class="line" id="accounts" hidden><select id="account"></select><button id="add">＋ 新增账号</button><button id="rename">编辑账号</button></div></section><section id="content"></section><footer><p id="archive-footer">星轨档案 · 保存到本机的档案.json · 可在数据管理导出备份</p></footer></main><div id="toast"></div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="./cloud.js?v=c3146c61c8d9"></script>
+<script src="./cloud.js?v=09a1d71b85f2"></script>
 <script>window.archiveCloudConfig = {"url": "https://qegkgtkknxyzvqewxviv.supabase.co", "publishableKey": "sb_publishable_Cm4IPDN8P0mV7V8jZ8-kDQ_GjCGMZkU"};</script>
 <script>
 const $=id=>document.getElementById(id), clone=o=>JSON.parse(JSON.stringify(o)), uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2);
@@ -110,12 +110,14 @@ async function loadCloudArchive() {
     $('content').textContent = '这个登录账号没有可访问的星轨档案。';
 }
 
-async function save() {
+async function save({importBatch, onError = message => alert(message)} = {}) {
     const main = document.querySelector('main');
     main.inert = true;
     try {
         if (cloud) {
-            revision = await cloud.write(db, revision);
+            revision = importBatch
+                ? await cloud.writeImport(importBatch, revision)
+                : await cloud.write(db, revision);
         } else {
             const response = await fetch('/api/archive', {
                 method: 'PUT',
@@ -131,13 +133,17 @@ async function save() {
         savedDb = structuredClone(db);
         return true;
     } catch (error) {
-        db = structuredClone(savedDb);
-        active = acc().id;
-        alert('保存失败：' + error.message);
+        restoreSavedArchive();
+        onError('保存失败：' + error.message);
         return false;
     } finally {
         main.inert = false;
     }
+}
+
+function restoreSavedArchive() {
+    db = structuredClone(savedDb);
+    active = acc().id;
 }
 
 function overview(container) {
@@ -253,9 +259,182 @@ function importData(text, type) {
     }
     return data;
 }
-function notify(s){$('toast').textContent=s;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2500)}function el(tag,txt,cls){let e=document.createElement(tag);if(txt!==undefined)e.textContent=txt;if(cls)e.className=cls;return e}function button(txt,fn,cls){let b=el('button',txt,cls);b.onclick=fn;return b}function select(vals,val,fn){let s=el('select');for(const [v,l] of vals)s.add(new Option(l,v));s.value=val;s.onchange=()=>fn(s.value);return s}function tabs(parent,vals,current,fn){let n=el('nav');for(let [v,l] of vals)n.append(button(l,()=>fn(v),v===current?'on':''));parent.append(n)}function panel(){return el('section',undefined,'panel')}function norm(s){return String(s??'').normalize('NFKC').trim().replace(/\s+/g,'')}function key(r){return JSON.stringify([r.module,r.category,r.subcategory,r.name,r.character,r.details?.map,r.details?.route,r.details?.node,r.details?.event,r.details?.branch,r.details?.stage].map(norm))}function condition(r){return norm(r.description||r.condition)}function match(r,rows){let a=rows.filter(x=>key(x)===key(r));if(a.length===1){if(condition(a[0])&&condition(r)&&condition(a[0])!==condition(r))return null;return a[0]}if(a.length>1&&condition(r)){let b=a.filter(x=>condition(x)===condition(r));if(b.length===1)return b[0]}return null}function merge(a,b,overwrite=false){let o=clone(a);for(let [k,v] of Object.entries(b)){if(v===null||v===undefined||k==='id')continue;if(k==='details'||k==='progress')o[k]=merge(o[k]||{},v,overwrite);else if(k==='source_images')o[k]=[...new Set([...(o[k]||[]),...v])];else if(overwrite||o[k]===undefined||o[k]===null||o[k]===''||Array.isArray(o[k])&&!o[k].length)o[k]=v}return o}function conflict(a,b){return Object.keys(b).filter(k=>!['id','source_images','notes','needs_review','details','progress'].includes(k)&&a[k]!=null&&b[k]!=null&&JSON.stringify(a[k])!==JSON.stringify(b[k]))}function snapshot(label){db.history.push({id:uid(),label,time:new Date().toISOString(),before:clone({guide:db.guide,accounts:db.accounts,review:db.review})});if(db.history.length>20)db.history.shift()}function download(name,data){let url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));let a=el('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+function notify(s){$('toast').textContent=s;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2500)}function el(tag,txt,cls){let e=document.createElement(tag);if(txt!==undefined)e.textContent=txt;if(cls)e.className=cls;return e}function button(txt,fn,cls){let b=el('button',txt,cls);b.onclick=fn;return b}function select(vals,val,fn){let s=el('select');for(const [v,l] of vals)s.add(new Option(l,v));s.value=val;s.onchange=()=>fn(s.value);return s}function tabs(parent,vals,current,fn){let n=el('nav');for(let [v,l] of vals)n.append(button(l,()=>fn(v),v===current?'on':''));parent.append(n)}function panel(){return el('section',undefined,'panel')}function norm(s){return String(s??'').normalize('NFKC').trim().replace(/\s+/g,'')}function key(r){return JSON.stringify([r.module,r.category,r.subcategory,r.name,r.character,r.details?.map,r.details?.route,r.details?.node,r.details?.event,r.details?.branch,r.details?.stage].map(norm))}function condition(r){return norm(r.description||r.condition)}function match(r,rows){let a=rows.filter(x=>key(x)===key(r));if(a.length===1){if(condition(a[0])&&condition(r)&&condition(a[0])!==condition(r))return null;return a[0]}if(a.length>1&&condition(r)){let b=a.filter(x=>condition(x)===condition(r));if(b.length===1)return b[0]}return null}function merge(a,b,overwrite=false){let o=clone(a);for(let [k,v] of Object.entries(b)){if(v===null||v===undefined||k==='id')continue;if(k==='details'||k==='progress')o[k]=merge(o[k]||{},v,overwrite);else if(k==='source_images')o[k]=[...new Set([...(o[k]||[]),...v])];else if(overwrite||o[k]===undefined||o[k]===null||o[k]===''||Array.isArray(o[k])&&!o[k].length)o[k]=v}return o}function conflict(a,b){return Object.keys(b).filter(k=>!['id','source_images','notes','needs_review','details','progress'].includes(k)&&a[k]!=null&&b[k]!=null&&JSON.stringify(a[k])!==JSON.stringify(b[k]))}function snapshot(label) {
+    const entry = {id:uid(), label, time:new Date().toISOString(),
+        before:clone({guide:db.guide, accounts:db.accounts, review:db.review})};
+    db.history.push(entry);
+    if (db.history.length > 20) db.history.shift();
+    return entry;
+}
+function download(name,data){let url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));let a=el('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function render(){let v=$('views');v.replaceChildren();for(let [k,l] of [['overview','汇总'],['account','我的账号'],['guide','攻略总库'],['ig','导入攻略'],['ia','导入账号'],['prompts','Prompt 中心'],['settings','数据管理']])v.append(button(l,()=>{view=k;pending=null;render()},view===k?'on':''));$('accounts').hidden=!['account','ia'].includes(view);$('account').replaceChildren(...db.accounts.map(a=>new Option(a.name+(a.gameId?' · '+a.gameId:''),a.id)));$('account').value=acc().id;let c=$('content');c.replaceChildren();if(view==='overview')return overview(c);if(view==='ig'||view==='ia')return importPage(c,view==='ig'?'guide':'account');if(view==='prompts')return prompts(c);if(view==='settings')return settings(c);let p=panel();tabs(p,Object.keys(modules).map(x=>[x,x]),mod,x=>{mod=x;cat='全部';render()});tabs(p,['全部',...modules[mod]].map(x=>[x,x]),cat,x=>{cat=x;render()});let rows=db.guide.filter(r=>r.module===mod&&(cat==='全部'||r.category===cat));let own=acc().items;let unmatched=own.filter(r=>!match(r,db.guide)&&r.module===mod&&(cat==='全部'||r.category===cat));let entries=rows.map(r=>({r,a:match(r,own)}));if(view==='account')entries.push(...unmatched.map(r=>({r,a:r,unmatched:true})));let g=el('div',undefined,'grid');for(let [l,n] of [['攻略收录',rows.length],...(view==='account'?[['已完成 / 收集',entries.filter(x=>x.a?.status==='completed').length],['未完成 / 收集',entries.filter(x=>x.a?.status==='incomplete').length],['未知',entries.filter(x=>!x.a?.status||x.a.status==='unknown').length],['待匹配',unmatched.length]]:[])]){let m=el('div',undefined,'metric');m.append(el('b',n),el('span',l));g.append(m)}p.append(g);if(view==='account'&&mod==='成就'&&acc().summary.achievement_points!=null)p.append(el('p','游戏成就点数：'+acc().summary.achievement_points+' / '+(acc().summary.achievement_stage_target??'未知')));if(view==='account'&&mod==='混沌深网')encounterSummary(p,acc());c.append(p);let list=panel(),bar=el('div',undefined,'line');bar.append(select(['全部',...characters].map(x=>[x,x]),char,x=>{char=x;render()}));if(view==='account')bar.append(select([['all','全部状态'],['completed','已完成'],['incomplete','未完成'],['unknown','未知'],['unmatched','待匹配']],status,x=>{status=x;render()}));let q=el('input');q.type='search';q.placeholder='搜索名称、攻略或条件';q.value=query;q.oninput=()=>{query=q.value;draw()};bar.append(q);list.append(bar);let body=el('div');list.append(body);c.append(list);function draw(){body.replaceChildren();let f=entries.filter(x=>(char==='全部'||x.r.character===char)&&(view==='guide'||status==='all'||(status==='unmatched'?x.unmatched:(x.a?.status||'unknown')===status))&&JSON.stringify(x.r).toLowerCase().includes(query.toLowerCase()));body.append(el('p','显示 '+f.length+' 条'));if(!f.length){let e=el('div',undefined,'empty');e.append(el('div','✧'),el('b','这片星域还没有记录'),el('p','导入攻略或账号 JSON 后，收集条目将在这里显示。'),button('导入数据',()=>{view=view==='guide'?'ig':'ia';render()},'primary'));body.append(e)}for(let x of f){let r=x.r,a=x.a,d=el('div',undefined,'item'),t=el('div');t.append(el('strong',r.name),el('p',[r.category,r.subcategory,r.character,x.unmatched?'待匹配':null].filter(Boolean).join(' · ')));if(r.description||r.condition)t.append(el('p',r.description||r.condition));if(a?.progress?.current!=null)t.append(el('p','进度 '+a.progress.current+' / '+(a.progress.target??'?')));if(a?.completed_at)t.append(el('p','完成日期 '+a.completed_at));if(r.guide||r.prerequisites||Object.keys(r.details||{}).length||r.rewards?.length){let dt=el('details');dt.append(el('summary','详细攻略与奖励'),el('pre',JSON.stringify({攻略:r.guide,前置:r.prerequisites,奖励:r.rewards,详情:r.details},null,2)));t.append(dt)}if(view==='account'&&a)appendSourceEvidence(t,a);d.append(t);if(view==='account')d.append(select([['unknown','未知'],['completed','已完成'],['incomplete','未完成']],a?.status||'unknown',async s=>{if(a)a.status=s;else own.push({...r,id:uid(),status:s});await save();render()}));body.append(d)}}draw()}
-function importPage(c,type){let p=panel();p.append(el('h2',type==='guide'?'导入公共攻略':'导入个人账号 · '+acc().name),el('p','粘贴 AI 提取的 JSON 或上传文件。先预览，再确认写入。'));let ta=el('textarea');ta.placeholder='{"schema_version":"1.0","import_type":"'+type+'","items":[]}';let file=el('input');file.type='file';file.accept='.json,application/json';file.onchange=async()=>{if(file.files[0])ta.value=await file.files[0].text();pending=null;preview.replaceChildren()};let preview=el('div');ta.oninput=()=>{pending=null;preview.replaceChildren()};p.append(ta,file,button('检查并预览',()=>{try{let data=importData(ta.value,type);let target=type==='guide'?db.guide:acc().items;let temp=clone(target);let out=data.items.map(r=>{if(!r||typeof r.name!=='string'||!r.name.trim()||!modules[r.module]||typeof r.category!=='string'||(type==='account'&&!['completed','incomplete','unknown'].includes(r.status)))return {r,kind:'无效',enabled:false};let m=match(r,temp),same=temp.filter(x=>key(x)===key(r));let changes=m?conflict(m,r):[];if(type==='account'&&m?.status==='completed'&&r.status!=='completed')changes.push('已完成状态保护');let kind=m?(changes.length?'冲突 / 更新':'重复 / 补全'):same.length?'身份冲突':'新增';if(!m&&!same.length)temp.push(r);return {r,kind,enabled:!changes.length&&kind!=='身份冲突',changes}});pending={data,out,type,account:active};drawPreview()}catch(e){preview.textContent=e.message;pending=null}},'primary'),preview);c.append(p);function drawPreview(){preview.replaceChildren();let {out}=pending;preview.append(el('h2','预览 · '+out.length+' 条'));let counts={};out.forEach(x=>counts[x.kind]=(counts[x.kind]||0)+1);preview.append(el('p',Object.entries(counts).map(([k,v])=>k+' '+v).join(' · ')));for(let x of out){let d=el('div',undefined,'item'),t=el('div');t.append(el('strong',x.r?.name||'无效条目'),el('p',x.kind+' '+(x.changes||[]).join('、')));let dt=el('details');dt.append(el('summary','查看 / 编辑 JSON'));let edit=el('textarea');edit.value=JSON.stringify(x.r,null,2);edit.onchange=()=>{try{x.r=JSON.parse(edit.value);x.enabled=false;cb.checked=false;notify('已编辑，请重新检查后勾选')}catch{notify('JSON 无效')}};dt.append(edit);t.append(dt);let cb=el('input');cb.type='checkbox';cb.checked=x.enabled;cb.disabled=x.kind==='无效';cb.onchange=()=>x.enabled=cb.checked;d.append(t,cb);preview.append(d)}preview.append(button('确认导入选中条目',async()=>{if(type==='account'&&pending.account!==active)return alert('账号已切换，请重新预览');snapshot(type==='guide'?'攻略导入':'账号导入 · '+acc().name);let target=type==='guide'?db.guide:acc().items;let n=0;for(let x of out.filter(x=>x.enabled)){let r=x.r;if(!r||!modules[r.module]||typeof r.name!=='string'||!r.name.trim()||typeof r.category!=='string'||(type==='account'&&!['completed','incomplete','unknown'].includes(r.status)))continue;let m=match(r,target);if(!m&&target.some(y=>key(y)===key(r))){db.review.push({type,account:active,item:r,reason:'身份冲突'});continue}if(m){let overwrite=x.kind==='冲突 / 更新';let next=merge(m,r,overwrite);if(m.status==='completed'&&r.status!=='completed'){next.status=m.status;next.completed_at=m.completed_at}if(r.status==='unknown'&&m.status)next.status=m.status;Object.assign(m,next)}else target.push({...r,id:uid()});n++}if(type==='account')acc().summary=merge(acc().summary,pending.data.account_summary||{},true);for(let r of pending.data.review_required||[])db.review.push({type,account:active,item:r});if(await save()){pending=null;render();notify('已导入 '+n+' 条，'+(cloud?'已保存到云端':'已写入档案.json'))}},'primary'))}}
+function importItemError(row, type) {
+    if (!row || typeof row.name !== 'string' || !row.name.trim()) return '缺少条目名称';
+    if (!Object.hasOwn(modules, row.module) || typeof row.category !== 'string') return '模块或类别格式有误';
+    if (type === 'account' && !['completed', 'incomplete', 'unknown'].includes(row.status)) return '账号状态格式有误';
+    if (row.source_images != null && !Array.isArray(row.source_images)) return 'source_images 必须是数组';
+    for (const field of ['details', 'progress']) {
+        if (row[field] != null && (typeof row[field] !== 'object' || Array.isArray(row[field]))) {
+            return field + ' 必须是对象';
+        }
+    }
+    return '';
+}
+
+function importPage(container, type) {
+    const isAccount = type === 'account';
+    const card = panel();
+    card.append(el('h2', isAccount ? '导入个人账号 · ' + acc().name : '导入公共攻略'),
+        el('p', '粘贴 AI 提取的 JSON 或上传文件。先预览，再确认写入。'));
+    const text = el('textarea');
+    text.placeholder = JSON.stringify({schema_version:'1.0', import_type:type, items:[]});
+    const file = el('input');
+    file.type = 'file';
+    file.accept = '.json,application/json';
+    const preview = el('div');
+    function clearPreview() {
+        pending = null;
+        preview.replaceChildren();
+    }
+    text.oninput = clearPreview;
+    file.onchange = async () => {
+        clearPreview();
+        if (!file.files[0]) return;
+        try {
+            text.value = await file.files[0].text();
+        } catch (error) {
+            preview.textContent = '读取文件失败：' + error.message;
+        }
+    };
+    card.append(text, file, button('检查并预览', () => {
+        try {
+            const data = importData(text.value, type);
+            const temp = [...(isAccount ? acc().items : db.guide)];
+            const rows = data.items.map(row => {
+                const error = importItemError(row, type);
+                if (error) return {row, kind:'无效', enabled:false, error};
+                const existing = match(row, temp);
+                const changes = existing ? conflict(existing, row) : [];
+                if (isAccount && existing?.status === 'completed' && row.status !== 'completed') {
+                    changes.push('已完成状态保护');
+                }
+                let kind = '新增';
+                if (existing) kind = changes.length ? '冲突 / 更新' : '重复 / 补全';
+                else if (temp.some(candidate => key(candidate) === key(row))) kind = '身份冲突';
+                else temp.push(row);
+                return {row, kind, enabled:!changes.length && kind !== '身份冲突', changes};
+            });
+            pending = {data, rows, account:active};
+            drawPreview(pending);
+        } catch (error) {
+            clearPreview();
+            preview.textContent = '预览失败：' + error.message;
+        }
+    }, 'primary'), preview);
+    container.append(card);
+
+    function drawPreview(batch) {
+        const {rows} = batch;
+        preview.replaceChildren(el('h2', '预览 · ' + rows.length + ' 条'));
+        const counts = {};
+        for (const row of rows) counts[row.kind] = (counts[row.kind] || 0) + 1;
+        preview.append(el('p', Object.entries(counts).map(([kind, count]) => kind + ' ' + count).join(' · ')));
+        const feedback = el('p');
+        feedback.setAttribute('role', 'status');
+        for (const entry of rows) {
+            const item = el('div', undefined, 'item');
+            const body = el('div');
+            const description = el('p', [entry.kind, entry.error || entry.changes?.join('、')].filter(Boolean).join(' · '));
+            body.append(el('strong', entry.row?.name || '无效条目'), description);
+            const detail = el('details');
+            const editor = el('textarea');
+            editor.value = JSON.stringify(entry.row, null, 2);
+            const checkbox = el('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = entry.enabled;
+            checkbox.disabled = Boolean(entry.error);
+            checkbox.onchange = () => entry.enabled = checkbox.checked;
+            editor.onchange = () => {
+                try {
+                    entry.row = JSON.parse(editor.value);
+                    entry.error = importItemError(entry.row, type);
+                } catch {
+                    entry.error = 'JSON 格式有误';
+                }
+                entry.enabled = checkbox.checked = false;
+                checkbox.disabled = Boolean(entry.error);
+                description.textContent = entry.error || '已编辑，请检查后勾选';
+            };
+            detail.append(el('summary', '查看 / 编辑 JSON'), editor);
+            body.append(detail);
+            item.append(body, checkbox);
+            preview.append(item);
+        }
+        const confirmImport = button('确认导入选中条目', async () => {
+            const selected = rows.filter(entry => entry.enabled);
+            const summary = isAccount ? batch.data.account_summary || {} : {};
+            const review = batch.data.review_required || [];
+            if (pending !== batch || (isAccount && batch.account !== active)) {
+                feedback.textContent = '请重新预览后再导入。';
+                return;
+            }
+            if (!selected.length && !review.length && !Object.values(summary).some(value => value != null)) {
+                feedback.textContent = '请先勾选要导入的条目。';
+                return;
+            }
+            confirmImport.disabled = true;
+            confirmImport.textContent = '正在保存…';
+            feedback.textContent = '正在保存本批数据，请稍候。';
+            try {
+                const {before, ...history} = snapshot(isAccount ? '账号导入 · ' + acc().name : '攻略导入');
+                const target = isAccount ? acc().items : db.guide;
+                let count = 0;
+                for (const entry of selected) {
+                    const row = entry.row;
+                    const error = importItemError(row, type);
+                    if (error) throw Error(row?.name + '：' + error);
+                    const existing = match(row, target);
+                    if (!existing && target.some(candidate => key(candidate) === key(row))) {
+                        db.review.push({type, account:active, item:row, reason:'身份冲突'});
+                        continue;
+                    }
+                    if (existing) {
+                        const next = merge(existing, row, entry.kind === '冲突 / 更新');
+                        if (existing.status === 'completed' && row.status !== 'completed') {
+                            next.status = existing.status;
+                            next.completed_at = existing.completed_at;
+                        }
+                        if (row.status === 'unknown' && existing.status) next.status = existing.status;
+                        Object.assign(existing, next);
+                    } else {
+                        target.push({...row, id:uid()});
+                    }
+                    count++;
+                }
+                if (isAccount) acc().summary = merge(acc().summary, summary, true);
+                for (const row of review) db.review.push({type, account:active, item:row});
+                const importBatch = {
+                    lists: isAccount ? {accounts:db.accounts} : {guide:db.guide},
+                    review: db.review.slice(before.review.length),
+                    history,
+                };
+                const saved = await save({importBatch, onError: message => feedback.textContent = message});
+                if (saved) {
+                    pending = null;
+                    render();
+                    notify('已导入 ' + count + ' 条，' + (cloud ? '已保存到云端' : '已写入档案.json'));
+                }
+            } catch (error) {
+                restoreSavedArchive();
+                feedback.textContent = '导入失败：' + error.message;
+            } finally {
+                confirmImport.textContent = '确认导入选中条目';
+                confirmImport.disabled = false;
+            }
+        }, 'primary');
+        preview.append(confirmImport, feedback);
+    }
+}
 const schemaGuide={schema_version:'1.0',import_type:'guide',items:[{module:'成就',category:'家园纪事',subcategory:null,name:'示例（不要导入）',character:null,description:null,condition:null,guide:null,prerequisites:null,target:{value:null,unit:null},rewards:[],achievement_points:null,is_hidden:null,details:{},source_images:[],needs_review:false,notes:null}],review_required:[]};const schemaAccount={schema_version:'1.0',import_type:'account',account_name:null,account_game_id:null,account_summary:{achievement_points:null,achievement_stage_target:null},items:[{module:'成就',category:'家园纪事',subcategory:null,name:'示例（不要导入）',character:null,description:null,status:'unknown',progress:{current:null,target:null,unit:null},completed_at:null,reward_claimed:null,observed_rewards:[],observed_achievement_points:null,details:{},source_images:[],needs_review:false,notes:null}],review_required:[]};function promptText(type){return `你是《恋与深空》${type==='guide'?'公共攻略':'个人账号'}数据提取助手。${type==='account'?'开始任何提取前，必须先询问用户：这批截图属于哪个账号？请选择：'+db.accounts.map(a=>a.name+(a.gameId?'（'+a.gameId+'）':'')).join('、')+'。即使已上传截图，也必须等待用户明确确认后才开始提取；不得默认或猜测账号。若更换账号或新批次归属不明确，重新询问。输出 JSON 根对象额外包含 account_name 和 account_game_id，并在报告中注明确认的账号；不同账号的数据不得混合。':''}逐张按上传顺序编号，完整读取原图所有列、边缘、底部、注释、图例和流程箭头；保留原文、角色、条件、奖励、分支、阶段和数值。相邻截图重叠时补全并去重，同名不同角色、条件、路径或阶段必须独立记录。只依据图片，不猜测；不可辨认用 null 并放入 review_required，附图片编号及疑问。奖励图标无法确定名称时记录 icon_description 和 quantity。模块必须使用：混沌深网（事件、道具、通用代码、代码套组）、灵空行动（事件、道具）、成就（成长轨迹、猎人行动、喵星派对、娃娃乐园、假日心情、家园纪事）、家园互动（朋友圈、短信）；括号内为 category，细分类放 subcategory，地图、路线、节点、选项及分支放 details。角色不明确用 null。${type==='account'?'仅记录账号截图证据；状态 completed/incomplete/unknown，未出现不等于未完成；日期转 YYYY-MM-DD；未显示当前值不要用目标值代替；总成就点数不累加；奖励领取与完成分开；冲突保留待核实。':'攻略作者说明与游戏原文分开，不推断个人完成情况。'}\n完成首次提取后重新逐图核查名称、角色、数字、日期、奖励、截断、重复与遗漏。先报告图片数、独立条目数、重复数、待核实数，再输出完整有效 JSON（可分批，每批独立有效，不含注释或省略号）。下面仅是结构示例，不能将示例当作实际数据：\n${JSON.stringify(type==='guide'?schemaGuide:schemaAccount,null,2)}`}
 function prompts(c){for(let [type,title] of [['guide','公共攻略图片提取'],['account','个人账号截图提取']]){let p=panel();p.append(el('h2',title),el('p','把 Prompt 和截图一起发给 AI。将输出的 JSON 对象粘贴到对应的导入页，或保存为 .json 后上传。账号数据请先选中对应账号。'));let ta=el('textarea');ta.value=promptText(type);ta.readOnly=true;p.append(button('一键复制 Prompt',async()=>{try{await navigator.clipboard.writeText(ta.value);notify('已复制')}catch{ta.select();if(document.execCommand('copy'))notify('已复制');else notify('请手动复制选中的文字')}},'primary'),ta,button('下载 JSON 格式示例',()=>download(type+'-schema.json',type==='guide'?schemaGuide:schemaAccount)));c.append(p)}}
 function settings(c){let p=panel();p.append(el('h2','备份与恢复'),button('导出整体档案 JSON',()=>download('deepspace-archive.json',db),'primary'),button('导出公共攻略',()=>download('guide.json',{schema_version:'1.0',import_type:'guide',items:db.guide,review_required:[]})),button('导出当前账号',()=>download('account.json',{schema_version:'1.0',import_type:'account',account_name:acc().name,account_game_id:acc().gameId,items:acc().items,account_summary:acc().summary,review_required:[]})));let f=el('input');f.type='file';f.accept='.json';f.onchange=async()=>{try{let v=JSON.parse(await f.files[0].text());if(!Array.isArray(v.guide)||!Array.isArray(v.accounts)||!v.accounts.length||!v.accounts.every(a=>a.id&&a.name&&Array.isArray(a.items)))throw Error();if(confirm('恢复备份会替换当前档案，继续？')){db={...v,accounts:v.accounts.map(a=>({summary:{},...a})),history:v.history||[],review:v.review||[]};active=db.accounts[0].id;if(await save())render()}}catch{alert('备份无效')}};p.append(el('p','恢复完整备份（会替换当前数据）'),f);c.append(p);let h=panel();h.append(el('h2','导入历史'));for(let x of [...db.history].reverse()){let d=el('div',undefined,'item');d.append(el('div',x.label+' · '+new Date(x.time).toLocaleString()),button('撤销至此批前',async()=>{if(confirm('这会撤销本批及之后所有更改，继续？')){Object.assign(db,clone(x.before));db.history=db.history.slice(0,db.history.findIndex(y=>y.id===x.id));active=db.accounts[0].id;await save();render()}}));h.append(d)}if(!db.history.length)h.append(el('p','暂无导入历史'));c.append(h);let r=panel();r.append(el('h2','导入待核实 · '+db.review.length));for(let x of db.review){let dt=el('details');dt.append(el('summary',x.item?.name||'待核实记录'),el('pre',JSON.stringify(x,null,2)));r.append(dt)}c.append(r);let d=panel();d.append(el('h2','清空收集资料'),el('p','保留账号名称与游戏 ID；请先导出备份。'),button('清空攻略及全部账号进度',async()=>{if(prompt('输入 清空 确认')==='清空'){snapshot('清空资料');db.guide=[];db.review=[];db.accounts.forEach(a=>{a.items=[];a.summary={}});await save();render()}},'danger'));c.append(d)}

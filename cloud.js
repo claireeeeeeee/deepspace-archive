@@ -37,5 +37,15 @@ function createCloudArchive({ url, publishableKey }) {
             if (!row) throw new Error('云端档案已在别处更新，请刷新后重试');
             return row.revision;
         },
+        async writeImport(batch, revision) {
+            const nextRevision = await result(client.rpc('apply_deepspace_archive_import', {
+                expected_revision: revision,
+                changed_lists: batch.lists,
+                review_additions: batch.review,
+                history_entry: batch.history,
+            }));
+            if (nextRevision == null) throw new Error('云端档案已在别处更新，请刷新后重试');
+            return nextRevision;
+        },
     };
 }
