@@ -1,5 +1,7 @@
 "use strict";
 
+const ARCHIVE_LOGIN = { name: '星轨', email: 'archive@deepspace.invalid' };
+
 function createCloudArchive({ url, publishableKey }) {
     const client = window.supabase.createClient(url, publishableKey, {
         auth: { storageKey: 'deepspace-archive-auth-' + new URL(url).hostname },
@@ -15,14 +17,11 @@ function createCloudArchive({ url, publishableKey }) {
         async session() {
             return (await result(client.auth.getSession())).session;
         },
-        async signIn(email, password) {
-            await result(client.auth.signInWithPassword({ email, password }));
-        },
-        async sendSignInLink(email, redirectTo) {
-            await result(client.auth.signInWithOtp({
-                email,
-                options: { shouldCreateUser: false, emailRedirectTo: redirectTo },
-            }));
+        async signIn(username, password) {
+            if (username !== ARCHIVE_LOGIN.name && username.toLowerCase() !== ARCHIVE_LOGIN.email) {
+                throw new Error('Invalid login credentials');
+            }
+            await result(client.auth.signInWithPassword({ email: ARCHIVE_LOGIN.email, password }));
         },
         async signOut() {
             await result(client.auth.signOut({ scope: 'local' }));
